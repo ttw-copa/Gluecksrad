@@ -1,0 +1,99 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: #f0f0f0;
+  background-image: url('img/background.jpg');
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  overflow: hidden;
+  touch-action: none;
+  flex-direction: column;
+  display: flex;
+  flex-direction: column; 
+  justify-content: center; 
+  align-items: center; 
+  overflow: hidden;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: opacity 500ms;
+  display: none;
+  overflow-y: auto;
+  overflow: hidden;
+}
+
+.popup {
+  margin: 70px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 5px;
+  width: 70%;
+  position: relative;
+  transition: all 5s ease-in-out;
+  z-index: 3;
+  touch-action: none;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.popup h2 {
+  text-align: center;
+}
+
+.popup .close:hover {
+  color: #06D85F;
+  z-index: 3;
+}
+.popup .content {
+  max-height: 30%;
+  overflow: auto;
+  z-index: 3;
+}
+
+#popup1 {
+  z-index: 5;
+}
+
+#canvas {
+  z-index: -2;
+}
+
+#Menü {
+  position: absolute;
+}
+
+#Menü:hover {
+  cursor: pointer;
+}
+
+#Logo {
+  position: absolute;
+}
+
+#Logo:hover {
+  cursor: pointer;
+}
+
+#Pfeil {
+  position: absolute;
+}
+
+#Textinhalt {
+  width: 70px;
+}
+
+#Wahrscheinlichkeit {
+  width: 30px;
+}
+
+.content > div {
+  margin-bottom: 10px; 
+}

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COPA Glücksrad</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body onload="WebsiteGeladen()"> <!--Funktion, die ausgeführt wird, sobald die Website geladen ist-->
+    <canvas id="canvas" style="border:0px solid black;"></canvas>
+    <script src="Winwheel.min.js"></script> <!--komprimierte Winwheel Library-->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script> <!--Animationslibrary für flüssige Drehungen-->
+    <div id="popup1" class="overlay"> <!--Einstellungen Popupfenster-->
+        <div class="popup">
+            <h2>Einstellungen</h2> <!--Überschrift des popups-->
+            <div class="content">
+                <div>
+                    <label for="Textinhalt">Feldname</label> <!--Feldbeschriftung-->
+                    <input type="text" id="Textinhalt"> <!--Textfeld für den Feldnamen-->
+                </div>
+                <div>
+                    <label for="Wahrscheinlichkeit">Feldwahrscheinlichkeit</label> <!--Feldbeschriftung-->
+                    <input type="text" id="Wahrscheinlichkeit"> <!--Textfeld für die Feldwahrscheinlichkeit-->
+                </div>
+                <button id="schließen" onclick="popup_button_close();">Anwenden und schließen</button> <!--Schließt die Einstellungen-->
+                <button id="hinzufügen" onclick="popup_button_add();">Feld hinzufügen</button><!--Fügt ein Feld im Glücksrad hinzu-->
+                <button id="löschen" onclick="popup_button_delete();">Alle Felder löschen</button> <!--Löscht alle Felder-->
+                <div id="Felder"></div>
+            </div>
+        </div>
+    </div>
+    <img src="img/copalogo.png" width="50px" height="50px" id="Logo" onclick="theWheel.startAnimation()"><!--Bild für das Logo, dreht das Rad-->
+    <img src="img/settings.png" width="50px" height="50px" id="Menü" onclick="EinstellungenÖffnen()"><!--Bild für das Menü, ruft Einstellugen auf-->
+    <img src="img/Pfeil.png" width="50px" height="50px" id="Pfeil"><!--Bild für den Pfeil-->
+<script>
+    let _canvasId = "canvas";
+    let _numSegmente = 0;
+    let _bildOverlay = true;
+    let _aeussereRadius;
+    let _innereRadius = 60;
+    let _drawText = true;
+    let _textAlignment = "outer";
+    let _TextFontSize = 25;
+    let _textFontFamily = "courier";
+    let _rotationsWinkel = 0;
+    let _typ = "spinToStop"; // Art der Spinanimation
+    let _laenge = 10; // Länge in s, wie lange sich das Rad dreht
+    let _spins = 1800; // Um wie viel Grad sich das Rad IMMER drehen soll
+    let _callbackFinished = "Gewinnbenachrichtigung()";
+    let feldName;
+    let VarZwei;
+    let popupElement = document.getElementById("popup1");
+    let segments = [];
+    let gespeicherteNumSegmente = localStorage.getItem("numSegmente"); // Daten aus dem Browsercache zur weiteren Verarbeitung abspeichern
+    let gespeicherteSegmente = localStorage.getItem("segments");
+    let ausgewählteFarbeIndex = 0;
+    const felderContainer = document.getElementById("Felder");
+    window.addEventListener('resize', function() {
+    passeGroessenAn();
+    });
+
+    let animation = { // zuständig für die Spin-Animation von dem Glücksrad
+                    'type'     : _typ,
+                    'duration' : _laenge,
+                    'spins'    : _spins,
+                    'callbackFinished' : function() {
+                        Gewinnbenachrichtigung();
+                        passeGroessenAn();
+                        spinsAnpassen();
+                    },
+                    'callbackBefore' : passeGroessenAn,
+                    'callbackAfter' : passeGroessenAn,
+                    };
+    
+    let theWheel = new Winwheel({ // eigenschaften für das Rad bevor es gezeichnet wirdd
+            'canvasId' : _canvasId,
+            'numSegments' : parseInt(_numSegmente),
+            'imageOverlay' : _bildOverlay,
+            'outerRadius' : parseInt(_aeussereRadius),
+            'innerRadius' : parseInt(_innereRadius),
+            'drawText' : _drawText,
+            'textAlignment' : _textAlignment,
+            'textFontSize'    : parseInt(_TextFontSize),
+            'textFontFamily' : _textFontFamily,
+            'rotationAngle'   : parseInt(_rotationsWinkel),
+            'segments'    : segments,
+            'animation' : animation,
+            'textDirection'   : 'normal',
+            'textOrientation' : 'curved',
+            'lineWidth' : 4,
+            });
+
+    let Farben = [
+        { color: "rgb(255, 228, 181)", name: 'Hellpfirsich' },
+        { color: "rgb(255, 218, 185)", name: 'Aprikose' },
+        { color: "rgb(255, 160, 122)", name: 'Lachsorange' },
+        { color: "rgb(240, 128, 128)", name: 'Koralle' },
+        { color: "rgb(255, 105, 180)", name: 'Rosa' },
+        { color: "rgb(255, 0, 255)", name: 'Magenta' },
+        { color: "rgb(135, 206, 250)", name: 'Hellblau' },
+        { color: "rgb(70, 130, 180)", name: 'Stahlblau' },
+        { color: "rgb(0, 0, 128)", name: 'Marineblau' },
+        { color: "rgb(0, 128, 0)", name: 'Grün' },
+        { color: "rgb(154, 205, 50)", name: 'Lindgrün' },
+        { color: "rgb(255, 215, 0)", name: 'Gold' },
+        { color: "rgb(210, 180, 140)", name: 'Beige' },
+        { color: "rgb(139, 69, 19)", name: 'Dunkelbraun' },
+        { color: "rgb(160, 82, 45)", name: 'Rostbraun' },
+        { color: "rgb(139, 0, 0)", name: 'Weinrot' },
+        { color: "rgb(255, 0, 0)", name: 'Rot' },
+        { color: "rgb(255, 99, 71)", name: 'Tomatenrot' },
+        { color: "rgb(226, 69, 18)", name: 'COPA Orange' },
+        { color: "rgb(91, 102, 112)", name: 'COPA Grau' },
+    ];
+
+    function Zwischenspeicher()
+    {
+        // speichert _numSegmente und segments im localStorage
+        localStorage.setItem("numSegmente",_numSegmente.toString());
+        localStorage.setItem("segments",JSON.stringify(segments));
+    }
+
+    function WebsiteGeladen() // Funktionb die ausgeführt wird, sobald die Website vollständig geladen ist
+    {
+        // attribute aus dem Browsercache abrufen und in den Radeigenschaften für die Erstellung speichern
+        if (gespeicherteNumSegmente && gespeicherteSegmente) {
+            _numSegmente = parseInt(gespeicherteNumSegmente);
+            segments = JSON.parse(gespeicherteSegmente);
+            radEigenschaften();
+        }
+
+        // allgemeines
+        popupElement.style.display = "none";
+        theWheel._rotationsWinkel=0;
+        passeGroessenAn();
+        FelderlisteErstellen();
+        console.log("Aktuelle Felderanzahl:", gespeicherteNumSegmente);
+        console.log("rotationAngle zu Beginn",theWheel.rotationAngle);
+        console.log("spins in animation zu Beginn",animation.spins);
+    }
+
+    function FeldHinzufügen() // fügt ein Feld mit angegebenen Eigenschaften hinzu
+    {
+        // Attribute für das neue Feld werden von der Website abgerufen und die Felderanzahl wird um 1 erhöht
+        feldName = Textinhalt.value;
+        feldWahrscheinlichkeit = Wahrscheinlichkeit.value;
+        _numSegmente++;
+        let ausgewählteFarbe = Farben[ausgewählteFarbeIndex].color;
+
+        // Das neue Feld wird mit dem entsprechenden Inhalt gefüllt
+        let neuerInhalt = {
+            'text': feldName,
+            'fillStyle': ausgewählteFarbe,
+            'size': winwheelPercentToDegrees(feldWahrscheinlichkeit), 
+        };
+
+        // das neu definierte Feld wird in den Array "segments" eingefügt
+        segments.push(neuerInhalt); 
+        theWheel.addSegment(neuerInhalt);
+
+        passeGroessenAn();
+        Zwischenspeicher();
+        FelderlisteErstellen();
+        ausgewählteFarbeIndex = (ausgewählteFarbeIndex + 1) % Farben.length;
+    }
+
+    function FelderlisteErstellen() // erstelle eine visuelle Liste in den Einstellungen zur Darstellung der Inhalte aus dem Array "segments"
+    {
+        // Container wird geleert, falls ohnehin nicht schon leer
+        while (felderContainer.firstChild) {
+            felderContainer.removeChild(felderContainer.firstChild);
+        }
+
+        // erstellung von n neuen Feldern basierend auf der Länge des Arrays "segments"
+        for (let i = 0; i < segments.length; i++) {
+            // container für Felder in einer Zeile
+            const zeilenContainer = document.createElement("div");
+            zeilenContainer.classList.add("feld-zeile");
+
+            // Textfeldgenerierung für die Feldernamen
+            const feldernameNeuesFeld = document.createElement("input");
+            feldernameNeuesFeld.type = "text";
+            feldernameNeuesFeld.id = `Feldname${i + 1}`;
+            feldernameNeuesFeld.value = segments[i].text;
+            zeilenContainer.appendChild(feldernameNeuesFeld);
+
+            // Textfeldgenerierung für die Felderfarbe
+            const felderfarbeNeuesFeld = document.createElement("select");
+        felderfarbeNeuesFeld.id = `Felderfarbe${i + 1}`;
+        for (const farbe of Farben) {
+            const option = document.createElement("option");
+            option.value = farbe.color; // Farbwert ohne Anführungszeichen
+            option.text = farbe.name;
+            option.style.backgroundColor = farbe.color; // Farbwert ohne Anführungszeichen
+            felderfarbeNeuesFeld.style.width = "120px";
+            felderfarbeNeuesFeld.appendChild(option);
+            }
+            felderfarbeNeuesFeld.value = segments[i].fillStyle; 
+            zeilenContainer.appendChild(felderfarbeNeuesFeld);
+
+            // neues div für die Farbansicht hinzufügen
+            const farbAnsicht = document.createElement("div");
+            farbAnsicht.style.width = "30px"; // Breite des Farbfeldes
+            farbAnsicht.style.height = "30px"; // Höhe des Farbfeldes
+            farbAnsicht.style.display = "inline-block"; // inlineblock für die Darstellung ohne komische bugs
+            farbAnsicht.style.backgroundColor = segments[i].fillStyle; // setzten der Hintergrundfarbe
+            farbAnsicht.style.position = "relative";
+            farbAnsicht.style.top = "13px";
+            farbAnsicht.style.border = "2px solid grey";
+            zeilenContainer.appendChild(farbAnsicht);
+
+            // eventlistener hinzufügen, um die Farbe bei Auswahl zu aktualisieren
+            felderfarbeNeuesFeld.addEventListener('change', (event) => {
+                farbAnsicht.style.backgroundColor = event.target.value; // aktualisieren der Farbansicht
+            });
+
+            // Textfeldgenerierung für die Felderwahrscheinlichkeit in %
+            const felderwahrscheinlichkeitNeuesFeld = document.createElement("input");
+            felderwahrscheinlichkeitNeuesFeld.type = "text";
+            felderwahrscheinlichkeitNeuesFeld.id = `Felderwahrscheinlichkeit${i + 1}`;
+            // Anzeige in Prozent (durch 3.6 teilen)
+            felderwahrscheinlichkeitNeuesFeld.value = Math.floor(segments[i].size / 3.6); 
+            zeilenContainer.appendChild(felderwahrscheinlichkeitNeuesFeld);
+
+            // Checkbox zum Löschen des Feldes hinzufügen
+            const loeschenCheckbox = document.createElement("input");
+            loeschenCheckbox.type = "checkbox";
+            loeschenCheckbox.id = `Loeschen${i + 1}`;
+            zeilenContainer.appendChild(loeschenCheckbox);
+
+            // anfügen der Container
+            felderContainer.appendChild(zeilenContainer);
+        }
+
+        // Button zum löschen der ausgewählten Felder
+        const loeschenButton = document.createElement("button");
+        loeschenButton.textContent = "Ausgewählte Felder löschen";
+        loeschenButton.addEventListener("click", () => {
+            const checkboxes = felderContainer.querySelectorAll("input[type='checkbox']");
+            const neueSegmente = [];
+            for (let i = 0; i < checkboxes.length; i++) {
+                if (!checkboxes[i].checked) {
+                    neueSegmente.push(segments[i]);
+                }
+            }
+            segments = neueSegmente;
+            _numSegmente = segments.length;
+            radEigenschaften();
+            Zwischenspeicher();
+            FelderlisteErstellen();
+        });
+        felderContainer.appendChild(loeschenButton);
+        passeGroessenAn();
+    }
+
+    function RadAnFelderlisteAnpassen() // aktualisiert das Rad, nachdem Änderungen in den Eistellungen vorgenommn wurden
+    {
+        for (let i = 0; i < segments.length; i++) {
+            const feldernameInput = document.getElementById(`Feldname${i + 1}`);
+            const felderfarbeSelect = document.getElementById(`Felderfarbe${i + 1}`);
+            const felderwahrscheinlichkeitInput = document.getElementById(`Felderwahrscheinlichkeit${i + 1}`);
+
+            // überprüfung, ob sich die Werte verändert haben. Wenn ja, neue Werte im array "segments" speichern
+            if (segments[i].text !== feldernameInput.value) {
+                segments[i].text = feldernameInput.value;
+            }
+
+            if (segments[i].fillStyle !== felderfarbeSelect.value) {
+                segments[i].fillStyle = felderfarbeSelect.value;
+            }
+
+                const newValue = parseFloat(felderwahrscheinlichkeitInput.value);
+            if (!isNaN(newValue) && segments[i].size !== newValue * 3.6) { // Umrechnung in Grad
+                segments[i].size = newValue * 3.6; 
+            }
+        }
+        radEigenschaften();
+        Zwischenspeicher();
+    }
+
+    function EinstellungenÖffnen() // macht das Einstellungsfenster sichtbar
+    {
+        popupElement.style.display = "block";
+        popupElement.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function EinstellungenSchließen() // macht das Einstellungsfenster unsichtbar
+    {
+        popupElement.style.display = "none";
+        popupElement.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function Gewinnbenachrichtigung() // gibt eine Gewinnbenachrichtigung aus
+    {
+        let gewinnSegment = theWheel.getIndicatedSegment();
+        alert("Du hast " + gewinnSegment.text + " " + "gewonnen!");
+        let currentRotationAngle = theWheel.rotationAngle;
+        _rotationsWinkel = currentRotationAngle;
+        radEigenschaften();
+    }
+
+    function popup_button_add() // Funktion, welche ausgeführt wird, wenn der Button "Feld hinzufügen" gedrückt wird
+    {
+        FeldHinzufügen();
+        passeGroessenAn();
+    }
+
+    function popup_button_close() // Funktion, welche ausgeführt wird, wenn der Button "Anwenden und schließen" gedrückt wird
+    {
+        EinstellungenSchließen();
+        RadAnFelderlisteAnpassen();
+        console.log("Aktuelle Felderanzahl:", _numSegmente);
+        passeGroessenAn();
+    }
+
+    function popup_button_delete() // Funktion welche ausgeführt wird, wenn der Button "Alle Felder löschen" gedrückt wird
+    {
+        segments=[];
+        _numSegmente=0;
+        passeGroessenAn();
+        radEigenschaften();
+        Zwischenspeicher();
+        FelderlisteErstellen();
+    }
+
+    function radEigenschaften() // Eigenschaften für das Rad, die benötigt werden bevor das Rad gezeichnet werden kann
+    {
+        theWheel = new Winwheel({ 
+                'canvasId' : _canvasId,
+                'numSegments' : _numSegmente,
+                'imageOverlay' : _bildOverlay,
+                'outerRadius' : _aeussereRadius,
+                'innerRadius' : _innereRadius,
+                'drawText' : _drawText,
+                'textAlignment' : _textAlignment,
+                'textFontSize'  : _TextFontSize,
+                'textFontFamily' : _textFontFamily,
+                'rotationAngle'  : _rotationsWinkel, 
+                'segments'   : segments,
+                'animation' : animation,
+                'textDirection'  : 'normal',
+                'textOrientation' : 'curved',
+                'lineWidth' : 4,
+            });
+    }
+
+    function passeGroessenAn() // Funktion, welche die Website automatisch an die gegebene Browserskalierung anpasst (PC, Handy, Ipad etc.)
+    {
+        let canvas = document.getElementById('canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let verfuegbarerPlatz = Math.min(window.innerWidth, window.innerHeight); 
+        let neuerAeussererRadius = verfuegbarerPlatz / 2.25; // Radgröße hier konfigurierbar, kleinere Zahl -> größeres Rad
+
+        theWheel.outerRadius = neuerAeussererRadius; 
+        theWheel.centerX = window.innerWidth / 2;
+        theWheel.centerY = window.innerHeight / 2;
+
+        theWheel.draw();
+        zeichneLogo();
+        zeichnePfeil();
+        zeichneMenü();
+    }
+
+    function zeichnePfeil() // Fuktion zum einfügen des Pfeilbildes an richtiger Stelle
+    {
+        let element = document.getElementById("Pfeil");
+        let breite = _innereRadius * 1; // Pfeilgröße hier konfigurierbar
+        let hoehe = (Pfeil.height / Pfeil.width) * breite; 
+
+        element.style.width = breite + 'px';
+        element.style.height = hoehe + 'px';
+        element.style.left = window.innerWidth / 2;
+        element.style.top = theWheel.centerY - theWheel.outerRadius - hoehe + 30 + 'px'; // Abstand zum Radmitte hier konfigurierbar
+    }
+ 
+    function zeichneLogo() // Funktion zum einfügen des Logoildes an richtiger Stelle
+    {
+        let element = document.getElementById("Logo");
+
+        let breite = _innereRadius * 2 + 5.5; // Größe des Logos hier anpassbar
+        let hoehe = (Logo.height / Logo.width) * breite;
+
+        element.style.width = breite + 'px';
+        element.style.height = hoehe + 'px';
+        element.style.left = window.innerWidth / 2;
+        element.style.top = window.innerHeight / 2;
+    }
+
+    function zeichneMenü() // Funktion zum einfügen des Menübildes an richtiger Stelle
+    {
+        let element = document.getElementById("Menü");
+        element.style.right = "50px";          
+        element.style.bottom = "30px";               
+    }
+
+    function spinsAnpassen() {
+        _spins = _spins + theWheel.rotationAngle;
+        animation.spins = _spins;
+        _spins = 1800;
+        radEigenschaften();
+        passeGroessenAn();
+
+        console.log("rotationAngle nach dem drehen",theWheel.rotationAngle);
+        console.log("spins nach dem drehen",animation.spins);
+    }
+</script>
+</body>
+</html>
